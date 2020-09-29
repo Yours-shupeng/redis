@@ -60,6 +60,12 @@
     #endif
 #endif
 
+/**
+ * 创建一个EventLoop循环
+ *
+ * @param setsize
+ * @return
+ */
 aeEventLoop *aeCreateEventLoop(int setsize) {
     aeEventLoop *eventLoop;
     int i;
@@ -150,6 +156,16 @@ void aeStop(aeEventLoop *eventLoop) {
     eventLoop->stop = 1;
 }
 
+/**
+ * 创建一个描述符监听事件
+ *
+ * @param eventLoop
+ * @param fd
+ * @param mask
+ * @param proc  处理函数
+ * @param clientData
+ * @return
+ */
 int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
         aeFileProc *proc, void *clientData)
 {
@@ -222,6 +238,16 @@ static void aeAddMillisecondsToNow(long long milliseconds, long *sec, long *ms) 
     *ms = when_ms;
 }
 
+/**
+ * 创建定时触发监听事件
+ *
+ * @param eventLoop
+ * @param milliseconds
+ * @param proc
+ * @param clientData
+ * @param finalizerProc
+ * @return
+ */
 long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
         aeTimeProc *proc, void *clientData,
         aeEventFinalizerProc *finalizerProc)
@@ -236,6 +262,7 @@ long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
     te->timeProc = proc;
     te->finalizerProc = finalizerProc;
     te->clientData = clientData;
+    // 循环列表，新加的定时事件插入列表的开头
     te->prev = NULL;
     te->next = eventLoop->timeEventHead;
     te->refcount = 0;
@@ -245,6 +272,13 @@ long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
     return id;
 }
 
+/**
+ * 删除一个定时事件，不直接删除，先将ID换成一个表示已删除的标志，之后再统一处理
+ *
+ * @param eventLoop
+ * @param id
+ * @return
+ */
 int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id)
 {
     aeTimeEvent *te = eventLoop->timeEventHead;
@@ -315,6 +349,9 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
         long long id;
 
         /* Remove events scheduled for deletion. */
+        /**
+         * 清理被删除的定时事件，清理完后触发析构回调函数
+         */
         if (te->id == AE_DELETED_EVENT_ID) {
             aeTimeEvent *next = te->next;
             /* If a reference exists for this timer event,
@@ -346,6 +383,7 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
             te = te->next;
             continue;
         }
+        // 当前时间超过定时事件目标时间，触发定时事件
         aeGetTime(&now_sec, &now_ms);
         if (now_sec > te->when_sec ||
             (now_sec == te->when_sec && now_ms >= te->when_ms))
@@ -353,13 +391,16 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
             int retval;
 
             id = te->id;
+            // 定时事件执行，更新引用计数
             te->refcount++;
             retval = te->timeProc(eventLoop, id, te->clientData);
             te->refcount--;
             processed++;
             if (retval != AE_NOMORE) {
+                // 如果是循环定时器，再次更新定时器时间
                 aeAddMillisecondsToNow(retval,&te->when_sec,&te->when_ms);
             } else {
+                // 如果是单次定时器，标记删除事件
                 te->id = AE_DELETED_EVENT_ID;
             }
         }
@@ -394,6 +435,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
      * file events to process as long as we want to process time
      * events, in order to sleep until the next time event is ready
      * to fire. */
+    // EventLoop中有注册描述符监听事件或者有定时事件
     if (eventLoop->maxfd != -1 ||
         ((flags & AE_TIME_EVENTS) && !(flags & AE_DONT_WAIT))) {
         int j;
@@ -402,6 +444,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 
         if (flags & AE_TIME_EVENTS && !(flags & AE_DONT_WAIT))
             shortest = aeSearchNearestTimer(eventLoop);
+        // 找到最近的定时事件
         if (shortest) {
             long now_sec, now_ms;
 
@@ -439,14 +482,17 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             tvp = &tv;
         }
 
+        // 触发sleep之前的回调函数
         if (eventLoop->beforesleep != NULL && flags & AE_CALL_BEFORE_SLEEP)
             eventLoop->beforesleep(eventLoop);
 
         /* Call the multiplexing API, will return only on timeout or when
          * some event fires. */
+        // 调用底层多路复用
         numevents = aeApiPoll(eventLoop, tvp);
 
         /* After sleep callback. */
+        // 触发sleep之后的回调函数
         if (eventLoop->aftersleep != NULL && flags & AE_CALL_AFTER_SLEEP)
             eventLoop->aftersleep(eventLoop);
 
@@ -533,6 +579,11 @@ int aeWait(int fd, int mask, long long milliseconds) {
     }
 }
 
+/**
+ * 事件的主循环入口
+ *
+ * @param eventLoop
+ */
 void aeMain(aeEventLoop *eventLoop) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
@@ -546,10 +597,22 @@ char *aeGetApiName(void) {
     return aeApiName();
 }
 
+/**
+ * 注册睡眠之前的处理函数
+ *
+ * @param eventLoop
+ * @param beforesleep
+ */
 void aeSetBeforeSleepProc(aeEventLoop *eventLoop, aeBeforeSleepProc *beforesleep) {
     eventLoop->beforesleep = beforesleep;
 }
 
+/**
+ * 注册睡眠唤醒之后的处理函数
+ *
+ * @param eventLoop
+ * @param aftersleep
+ */
 void aeSetAfterSleepProc(aeEventLoop *eventLoop, aeBeforeSleepProc *aftersleep) {
     eventLoop->aftersleep = aftersleep;
 }
