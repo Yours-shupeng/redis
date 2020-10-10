@@ -28,6 +28,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * 双向链表数据结构
+ */
+
 
 #include <stdlib.h>
 #include "adlist.h"
@@ -247,6 +251,12 @@ listNode *listNext(listIter *iter)
  * the original node is used as value of the copied node.
  *
  * The original list both on success or error is never modified. */
+/**
+ * 复制一个链表
+ *
+ * @param orig
+ * @return
+ */
 list *listDup(list *orig)
 {
     list *copy;
@@ -287,6 +297,13 @@ list *listDup(list *orig)
  * On success the first matching node pointer is returned
  * (search starts from head). If no matching node exists
  * NULL is returned. */
+/**
+ * 循环遍历链表查找一个元素
+ *
+ * @param list
+ * @param key
+ * @return
+ */
 listNode *listSearchKey(list *list, void *key)
 {
     listIter iter;
@@ -312,6 +329,13 @@ listNode *listSearchKey(list *list, void *key)
  * and so on. Negative integers are used in order to count
  * from the tail, -1 is the last element, -2 the penultimate
  * and so on. If the index is out of range NULL is returned. */
+/**
+ * 循环遍历链表，找到第index个元素
+ *
+ * @param list
+ * @param index
+ * @return
+ */
 listNode *listIndex(list *list, long index) {
     listNode *n;
 
@@ -358,6 +382,12 @@ void listRotateHeadToTail(list *list) {
 
 /* Add all the elements of the list 'o' at the end of the
  * list 'l'. The list 'other' remains empty but otherwise valid. */
+/**
+ * 列表合并
+ *
+ * @param l
+ * @param o
+ */
 void listJoin(list *l, list *o) {
     if (o->head)
         o->head->prev = l->tail;

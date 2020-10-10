@@ -57,6 +57,12 @@ static inline int sdsHdrSize(char type) {
     return 0;
 }
 
+/**
+ * 根据字符串长度计算最合适的sds类型
+ *
+ * @param string_size
+ * @return
+ */
 static inline char sdsReqType(size_t string_size) {
     if (string_size < 1<<5)
         return SDS_TYPE_5;
@@ -86,6 +92,13 @@ static inline char sdsReqType(size_t string_size) {
  * You can print the string with printf() as there is an implicit \0 at the
  * end of the string. However the string is binary safe and can contain
  * \0 characters in the middle, as the length is stored in the sds header. */
+/**
+ * 创建初始值为init，长度为initlen的动态字符串
+ *
+ * @param init
+ * @param initlen
+ * @return
+ */
 sds sdsnewlen(const void *init, size_t initlen) {
     void *sh;
     sds s;
@@ -96,7 +109,7 @@ sds sdsnewlen(const void *init, size_t initlen) {
     int hdrlen = sdsHdrSize(type);
     unsigned char *fp; /* flags pointer. */
 
-    sh = s_malloc(hdrlen+initlen+1);
+    sh = s_malloc(hdrlen+initlen+1); /* 包含\0 */
     if (sh == NULL) return NULL;
     if (init==SDS_NOINIT)
         init = NULL;
@@ -146,22 +159,44 @@ sds sdsnewlen(const void *init, size_t initlen) {
 
 /* Create an empty (zero length) sds string. Even in this case the string
  * always has an implicit null term. */
+/**
+ * 创建一个空的动态字符串
+ *
+ * @return
+ */
 sds sdsempty(void) {
     return sdsnewlen("",0);
 }
 
 /* Create a new sds string starting from a null terminated C string. */
+/**
+ * 根据初始c字符串，创建一个动态字符串
+ *
+ * @param init
+ * @return
+ */
 sds sdsnew(const char *init) {
     size_t initlen = (init == NULL) ? 0 : strlen(init);
     return sdsnewlen(init, initlen);
 }
 
 /* Duplicate an sds string. */
+/**
+ * 复制一个动态字符串
+ *
+ * @param s
+ * @return
+ */
 sds sdsdup(const sds s) {
     return sdsnewlen(s, sdslen(s));
 }
 
 /* Free an sds string. No operation is performed if 's' is NULL. */
+/**
+ * 释放一个动态字符串的结构体
+ *
+ * @param s
+ */
 void sdsfree(sds s) {
     if (s == NULL) return;
     s_free((char*)s-sdsHdrSize(s[-1]));
@@ -181,6 +216,11 @@ void sdsfree(sds s) {
  * The output will be "2", but if we comment out the call to sdsupdatelen()
  * the output will be "6" as the string was modified but the logical length
  * remains 6 bytes. */
+/**
+ * 更新字符串实际长度，以\0结尾为准
+ *
+ * @param s
+ */
 void sdsupdatelen(sds s) {
     size_t reallen = strlen(s);
     sdssetlen(s, reallen);
@@ -201,6 +241,13 @@ void sdsclear(sds s) {
  *
  * Note: this does not change the *length* of the sds string as returned
  * by sdslen(), but only the free buffer space we have. */
+/**
+ * 动态字符串追加字符后重新调整空间大小，小于1024x1024，分配空间扩大两倍，否则固定加1024*1024
+ *
+ * @param s
+ * @param addlen
+ * @return
+ */
 sds sdsMakeRoomFor(sds s, size_t addlen) {
     void *sh, *newsh;
     size_t avail = sdsavail(s);
@@ -252,6 +299,12 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
  *
  * After the call, the passed sds string is no longer valid and all the
  * references must be substituted with the new pointer returned by the call. */
+/**
+ * 删除动态字符串剩余的空间
+ *
+ * @param s
+ * @return
+ */
 sds sdsRemoveFreeSpace(sds s) {
     void *sh, *newsh;
     char type, oldtype = s[-1] & SDS_TYPE_MASK;
@@ -296,6 +349,12 @@ sds sdsRemoveFreeSpace(sds s) {
  * 3) The free buffer at the end if any.
  * 4) The implicit null term.
  */
+/**
+ * 动态字符串分配的空间大小
+ *
+ * @param s
+ * @return
+ */
 size_t sdsAllocSize(sds s) {
     size_t alloc = sdsalloc(s);
     return sdsHdrSize(s[-1])+alloc+1;
@@ -303,6 +362,12 @@ size_t sdsAllocSize(sds s) {
 
 /* Return the pointer of the actual SDS allocation (normally SDS strings
  * are referenced by the start of the string buffer). */
+/**
+ * 返回动态字符串分配空间的首指针
+ *
+ * @param s
+ * @return
+ */
 void *sdsAllocPtr(sds s) {
     return (void*) (s-sdsHdrSize(s[-1]));
 }
@@ -376,6 +441,13 @@ void sdsIncrLen(sds s, ssize_t incr) {
  *
  * if the specified length is smaller than the current length, no operation
  * is performed. */
+/**
+ * 扩展动态字符串，新扩展的部分用0填充
+ *
+ * @param s
+ * @param len
+ * @return
+ */
 sds sdsgrowzero(sds s, size_t len) {
     size_t curlen = sdslen(s);
 
@@ -394,6 +466,14 @@ sds sdsgrowzero(sds s, size_t len) {
  *
  * After the call, the passed sds string is no longer valid and all the
  * references must be substituted with the new pointer returned by the call. */
+/**
+ * 动态字符串连接普通字符串
+ *
+ * @param s
+ * @param t
+ * @param len
+ * @return
+ */
 sds sdscatlen(sds s, const void *t, size_t len) {
     size_t curlen = sdslen(s);
 
@@ -417,12 +497,27 @@ sds sdscat(sds s, const char *t) {
  *
  * After the call, the modified sds string is no longer valid and all the
  * references must be substituted with the new pointer returned by the call. */
+/**
+ * 动态字符串连接动态字符串
+ *
+ * @param s
+ * @param t
+ * @return
+ */
 sds sdscatsds(sds s, const sds t) {
     return sdscatlen(s, t, sdslen(t));
 }
 
 /* Destructively modify the sds string 's' to hold the specified binary
  * safe string pointed by 't' of length 'len' bytes. */
+/**
+ * 普通字符串拷贝到动态字符串
+ *
+ * @param s
+ * @param t
+ * @param len
+ * @return
+ */
 sds sdscpylen(sds s, const char *t, size_t len) {
     if (sdsalloc(s) < len) {
         s = sdsMakeRoomFor(s,len-sdslen(s));
@@ -447,6 +542,13 @@ sds sdscpy(sds s, const char *t) {
  * The function returns the length of the null-terminated string
  * representation stored at 's'. */
 #define SDS_LLSTR_SIZE 21
+/**
+ * long long数值转化为字符串
+ *
+ * @param s
+ * @param value
+ * @return
+ */
 int sdsll2str(char *s, long long value) {
     char *p, aux;
     unsigned long long v;
@@ -479,6 +581,13 @@ int sdsll2str(char *s, long long value) {
 }
 
 /* Identical sdsll2str(), but for unsigned long long type. */
+/**
+ * 无符号long long转化为字符串
+ *
+ * @param s
+ * @param v
+ * @return
+ */
 int sdsull2str(char *s, unsigned long long v) {
     char *p, aux;
     size_t l;
@@ -511,6 +620,12 @@ int sdsull2str(char *s, unsigned long long v) {
  *
  * sdscatprintf(sdsempty(),"%lld\n", value);
  */
+/**
+ * long long转化为动态字符串
+ *
+ * @param value
+ * @return
+ */
 sds sdsfromlonglong(long long value) {
     char buf[SDS_LLSTR_SIZE];
     int len = sdsll2str(buf,value);
@@ -519,6 +634,15 @@ sds sdsfromlonglong(long long value) {
 }
 
 /* Like sdscatprintf() but gets va_list instead of being variadic. */
+/**
+ * 按一定格式组成字符串，va_list为可变参数的宏
+ * TODO 没搞明白
+ *
+ * @param s
+ * @param fmt
+ * @param ap
+ * @return
+ */
 sds sdscatvprintf(sds s, const char *fmt, va_list ap) {
     va_list cpy;
     char staticbuf[1024], *buf = staticbuf, *t;
@@ -705,6 +829,13 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
  *
  * Output will be just "HelloWorld".
  */
+/**
+ * 过滤动态字符串首尾的特定字符，返回过滤后的动态字符串
+ *
+ * @param s
+ * @param cset
+ * @return
+ */
 sds sdstrim(sds s, const char *cset) {
     char *start, *end, *sp, *ep;
     size_t len;
@@ -736,6 +867,13 @@ sds sdstrim(sds s, const char *cset) {
  * s = sdsnew("Hello World");
  * sdsrange(s,1,-1); => "ello World"
  */
+/**
+ * 动态字符串在原串基础上取范围内的子串
+ *
+ * @param s
+ * @param start
+ * @param end
+ */
 void sdsrange(sds s, ssize_t start, ssize_t end) {
     size_t newlen, len = sdslen(s);
 
@@ -765,6 +903,11 @@ void sdsrange(sds s, ssize_t start, ssize_t end) {
 }
 
 /* Apply tolower() to every character of the sds string 's'. */
+/**
+ * 动态字符串取小写字母
+ *
+ * @param s
+ */
 void sdstolower(sds s) {
     size_t len = sdslen(s), j;
 
@@ -817,6 +960,16 @@ int sdscmp(const sds s1, const sds s2) {
  * requires length arguments. sdssplit() is just the
  * same function but for zero-terminated strings.
  */
+/**
+ * 分割动态字符串
+ *
+ * @param s 原字符串
+ * @param len 原字符串长度
+ * @param sep 分隔符
+ * @param seplen 分隔符长度
+ * @param count 分割后的数目
+ * @return
+ */
 sds *sdssplitlen(const char *s, ssize_t len, const char *sep, int seplen, int *count) {
     int elements = 0, slots = 5;
     long start = 0, j;
@@ -824,6 +977,7 @@ sds *sdssplitlen(const char *s, ssize_t len, const char *sep, int seplen, int *c
 
     if (seplen < 1 || len < 0) return NULL;
 
+    // 5个指针
     tokens = s_malloc(sizeof(sds)*slots);
     if (tokens == NULL) return NULL;
 

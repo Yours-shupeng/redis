@@ -70,6 +70,14 @@ static void aeApiFree(aeEventLoop *eventLoop) {
     zfree(state);
 }
 
+/**
+ * 增加fd监控事件
+ *
+ * @param eventLoop
+ * @param fd
+ * @param mask
+ * @return
+ */
 static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     aeApiState *state = eventLoop->apidata;
     struct epoll_event ee = {0}; /* avoid valgrind warning */
@@ -87,6 +95,13 @@ static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     return 0;
 }
 
+/**
+ * 删除fd监控事件
+ *
+ * @param eventLoop
+ * @param fd
+ * @param delmask
+ */
 static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
     aeApiState *state = eventLoop->apidata;
     struct epoll_event ee = {0}; /* avoid valgrind warning */
@@ -105,6 +120,13 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
     }
 }
 
+/**
+ * poll的时候调用epoll_wait，有读、写响应事件时，epoll会将这些事件放入state->events，不用遍历所有的fd
+ *
+ * @param eventLoop
+ * @param tvp
+ * @return
+ */
 static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     aeApiState *state = eventLoop->apidata;
     int retval, numevents = 0;

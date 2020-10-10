@@ -36,6 +36,11 @@
  * for instance to free results obtained by backtrace_symbols(). We need
  * to define this function before including zmalloc.h that may shadow the
  * free implementation if we use jemalloc or another non standard allocator. */
+/**
+ * 默认内存释放
+ *
+ * @param ptr
+ */
 void zlibc_free(void *ptr) {
     free(ptr);
 }
