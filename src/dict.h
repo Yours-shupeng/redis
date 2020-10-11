@@ -44,8 +44,12 @@
 /* Unused arguments generate annoying warnings... */
 #define DICT_NOTUSED(V) ((void) V)
 
+/**
+ * hash表的一个entry条目结构定义
+ */
 typedef struct dictEntry {
     void *key;
+    /* 共用体，同时只有一个字段生效 */
     union {
         void *val;
         uint64_t u64;
@@ -55,6 +59,9 @@ typedef struct dictEntry {
     struct dictEntry *next;
 } dictEntry;
 
+/**
+ * hash表的内置函数
+ */
 typedef struct dictType {
     uint64_t (*hashFunction)(const void *key);
     void *(*keyDup)(void *privdata, const void *key);
@@ -66,16 +73,28 @@ typedef struct dictType {
 
 /* This is our hash table structure. Every dictionary has two of this as we
  * implement incremental rehashing, for the old to the new table. */
+/**
+ * hash表的数据结构
+ */
 typedef struct dictht {
+    /* 存储数据 */
     dictEntry **table;
+    /* 桶的实际大小 */
     unsigned long size;
+    /* 桶的实际大小减1，一般为2的n次方减1，方便映射到具体的桶 */
     unsigned long sizemask;
+    /* 使用大小 */
     unsigned long used;
 } dictht;
 
+/**
+ * hash字典的数据结构定义
+ */
 typedef struct dict {
+    /* 操作接口 */
     dictType *type;
     void *privdata;
+    /* 两个hash table，用于数据增长后的rehash操作 */
     dictht ht[2];
     long rehashidx; /* rehashing not in progress if rehashidx == -1 */
     unsigned long iterators; /* number of iterators currently running */
@@ -85,6 +104,9 @@ typedef struct dict {
  * dictAdd, dictFind, and other functions against the dictionary even while
  * iterating. Otherwise it is a non safe iterator, and only dictNext()
  * should be called while iterating. */
+/**
+ * 字典的迭代器
+ */
 typedef struct dictIterator {
     dict *d;
     long index;

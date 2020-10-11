@@ -60,6 +60,7 @@
  * prevented: a hash table is still allowed to grow if the ratio between
  * the number of elements and the buckets > dict_force_resize_ratio. */
 static int dict_can_resize = 1;
+/* TODO 为什么要大于5倍才强制，这样hash table怎么存的下的，不会溢出来吗？ */
 static unsigned int dict_force_resize_ratio = 5;
 
 /* -------------------------- private prototypes ---------------------------- */
@@ -185,6 +186,13 @@ int dictExpand(dict *d, unsigned long size)
  * guaranteed that this function will rehash even a single bucket, since it
  * will visit at max N*10 empty buckets in total, otherwise the amount of
  * work it does would be unbound and the function may block for a long time. */
+/**
+ * 将数据从ht[0]转移到ht[1]，最多扫描n个有数据的桶，分批次来完成
+ *
+ * @param d
+ * @param n
+ * @return
+ */
 int dictRehash(dict *d, int n) {
     int empty_visits = n*10; /* Max number of empty buckets to visit. */
     if (!dictIsRehashing(d)) return 0;
@@ -195,12 +203,14 @@ int dictRehash(dict *d, int n) {
         /* Note that rehashidx can't overflow as we are sure there are more
          * elements because ht[0].used != 0 */
         assert(d->ht[0].size > (unsigned long)d->rehashidx);
+        /* 一次rehash最多扫描n*10个空的bucket，防止一次调用阻塞过久 */
         while(d->ht[0].table[d->rehashidx] == NULL) {
             d->rehashidx++;
             if (--empty_visits == 0) return 1;
         }
         de = d->ht[0].table[d->rehashidx];
         /* Move all the keys in this bucket from the old to the new hash HT */
+        /* 采用的是拉链法 */
         while(de) {
             uint64_t h;
 
@@ -218,6 +228,7 @@ int dictRehash(dict *d, int n) {
     }
 
     /* Check if we already rehashed the whole table... */
+    /* 全部迁移完成后，释放ht[0],ht[1]变为新的ht[0] */
     if (d->ht[0].used == 0) {
         zfree(d->ht[0].table);
         d->ht[0] = d->ht[1];
@@ -306,6 +317,7 @@ dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)
      * Insert the element in top, with the assumption that in a database
      * system it is more likely that recently added entries are accessed
      * more frequently. */
+    // 如果rehash正在进行，新加的entry加入到ht[1]，TODO 这段时间里是不是无法访问到新加的元素？？？
     ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0];
     entry = zmalloc(sizeof(*entry));
     entry->next = ht->table[index];
