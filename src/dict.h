@@ -93,6 +93,7 @@ typedef struct dictht {
 typedef struct dict {
     /* 操作接口 */
     dictType *type;
+    /* TODO what is privdata？？？ */
     void *privdata;
     /* 两个hash table，用于数据增长后的rehash操作 */
     dictht ht[2];
@@ -111,6 +112,7 @@ typedef struct dictIterator {
     dict *d;
     long index;
     int table, safe;
+    /* TODO 为什么需要保存nextEntry??? */
     dictEntry *entry, *nextEntry;
     /* unsafe iterator fingerprint for misuse detection. */
     long long fingerprint;

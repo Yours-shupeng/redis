@@ -364,6 +364,13 @@ int dictReplace(dict *d, void *key, void *val)
  * existing key is returned.)
  *
  * See dictAddRaw() for more information. */
+/**
+ * key已经存在，找到对应的entry，若不存在，则插入
+ *
+ * @param d
+ * @param key
+ * @return 找到或者插入的entry
+ */
 dictEntry *dictAddOrFind(dict *d, void *key) {
     dictEntry *entry, *existing;
     entry = dictAddRaw(d,key,&existing);
@@ -373,6 +380,14 @@ dictEntry *dictAddOrFind(dict *d, void *key) {
 /* Search and remove an element. This is an helper function for
  * dictDelete() and dictUnlink(), please check the top comment
  * of those functions. */
+/**
+ * dictDelete和dictUnlink的辅助函数，key存在则删除key，key不存在，返回NULL
+ *
+ * @param d
+ * @param key
+ * @param nofree
+ * @return
+ */
 static dictEntry *dictGenericDelete(dict *d, const void *key, int nofree) {
     uint64_t h, idx;
     dictEntry *he, *prevHe;
@@ -437,6 +452,13 @@ int dictDelete(dict *ht, const void *key) {
  * // Do something with entry
  * dictFreeUnlinkedEntry(entry); // <- This does not need to lookup again.
  */
+/**
+ * 从htable删除entry，但是并不释放
+ *
+ * @param ht
+ * @param key
+ * @return
+ */
 dictEntry *dictUnlink(dict *ht, const void *key) {
     return dictGenericDelete(ht,key,1);
 }
@@ -478,6 +500,11 @@ int _dictClear(dict *d, dictht *ht, void(callback)(void *)) {
 }
 
 /* Clear & Release the hash table */
+/**
+ * 清空dict
+ *
+ * @param d
+ */
 void dictRelease(dict *d)
 {
     _dictClear(d,&d->ht[0],NULL);
@@ -485,6 +512,13 @@ void dictRelease(dict *d)
     zfree(d);
 }
 
+/**
+ * 由于rehash的时候新增数据直接加到ht[1]中的，所以查找数据两个table都要扫描
+ *
+ * @param d
+ * @param key
+ * @return
+ */
 dictEntry *dictFind(dict *d, const void *key)
 {
     dictEntry *he;

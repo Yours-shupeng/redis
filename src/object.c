@@ -38,6 +38,13 @@
 
 /* ===================== Creation and parsing of objects ==================== */
 
+/**
+ * 创建一个RedisObject对象
+ *
+ * @param type
+ * @param ptr
+ * @return
+ */
 robj *createObject(int type, void *ptr) {
     robj *o = zmalloc(sizeof(*o));
     o->type = type;
@@ -74,6 +81,13 @@ robj *makeObjectShared(robj *o) {
 
 /* Create a string object with encoding OBJ_ENCODING_RAW, that is a plain
  * string object where o->ptr points to a proper sds string. */
+/**
+ * 创建一个编码方式为RAW的redisObject字符串对象
+ *
+ * @param ptr
+ * @param len
+ * @return
+ */
 robj *createRawStringObject(const char *ptr, size_t len) {
     return createObject(OBJ_STRING, sdsnewlen(ptr,len));
 }
@@ -81,7 +95,16 @@ robj *createRawStringObject(const char *ptr, size_t len) {
 /* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
  * an object where the sds string is actually an unmodifiable string
  * allocated in the same chunk as the object itself. */
+/**
+ * 创建一个编码方式为EMBSTR的redisObject字符串对象，字符串和redisObject分配在一起
+ * TODO 分配的内存地址对应关系
+ *
+ * @param ptr
+ * @param len
+ * @return
+ */
 robj *createEmbeddedStringObject(const char *ptr, size_t len) {
+    // TODO 为什么要多分配一个字节空间？（明白了，“\0”）
     robj *o = zmalloc(sizeof(robj)+sizeof(struct sdshdr8)+len+1);
     struct sdshdr8 *sh = (void*)(o+1);
 
@@ -116,6 +139,13 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len) {
  * The current limit of 44 is chosen so that the biggest string object
  * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc. */
 #define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
+/**
+ * 字符串长度如果小于44， 编码方式为EMBSTR，否则，编码方式为RAW
+ *
+ * @param ptr
+ * @param len
+ * @return
+ */
 robj *createStringObject(const char *ptr, size_t len) {
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
         return createEmbeddedStringObject(ptr,len);
@@ -141,10 +171,12 @@ robj *createStringObjectFromLongLongWithOptions(long long value, int valueobj) {
         valueobj = 0;
     }
 
+    /* 10000以内的整数从共享池取数据 */
     if (value >= 0 && value < OBJ_SHARED_INTEGERS && valueobj == 0) {
         incrRefCount(shared.integers[value]);
         o = shared.integers[value];
     } else {
+        /* long范围以内的数字，存为INT编码，long范围以外的数字存为字符串编码 */
         if (value >= LONG_MIN && value <= LONG_MAX) {
             o = createObject(OBJ_STRING, NULL);
             o->encoding = OBJ_ENCODING_INT;
@@ -158,6 +190,12 @@ robj *createStringObjectFromLongLongWithOptions(long long value, int valueobj) {
 
 /* Wrapper for createStringObjectFromLongLongWithOptions() always demanding
  * to create a shared object if possible. */
+/**
+ * 允许创建一个共享的数字对象
+ *
+ * @param value
+ * @return
+ */
 robj *createStringObjectFromLongLong(long long value) {
     return createStringObjectFromLongLongWithOptions(value,0);
 }
@@ -166,6 +204,12 @@ robj *createStringObjectFromLongLong(long long value) {
  * object when LFU/LRU info are needed, that is, when the object is used
  * as a value in the key space, and Redis is configured to evict based on
  * LFU/LRU. */
+/**
+ * 不允许创建一个全局共享的数字对象
+ *
+ * @param value
+ * @return
+ */
 robj *createStringObjectFromLongLongForValue(long long value) {
     return createStringObjectFromLongLongWithOptions(value,1);
 }
@@ -211,6 +255,11 @@ robj *dupStringObject(const robj *o) {
     }
 }
 
+/**
+ * 创建编码方式为quicklist的redisObject list对象
+ *
+ * @return
+ */
 robj *createQuicklistObject(void) {
     quicklist *l = quicklistCreate();
     robj *o = createObject(OBJ_LIST,l);
@@ -218,6 +267,11 @@ robj *createQuicklistObject(void) {
     return o;
 }
 
+/**
+ * 创建编码方式为ziplist的redisObject list对象
+ *
+ * @return
+ */
 robj *createZiplistObject(void) {
     unsigned char *zl = ziplistNew();
     robj *o = createObject(OBJ_LIST,zl);
@@ -225,6 +279,10 @@ robj *createZiplistObject(void) {
     return o;
 }
 
+/**
+ * 创建编码方式为HT的RedisObject Set对象
+ * @return
+ */
 robj *createSetObject(void) {
     dict *d = dictCreate(&setDictType,NULL);
     robj *o = createObject(OBJ_SET,d);
@@ -232,6 +290,11 @@ robj *createSetObject(void) {
     return o;
 }
 
+/**
+ * 创建编码方式为INTSET的RedisObject Set对象
+ *
+ * @return
+ */
 robj *createIntsetObject(void) {
     intset *is = intsetNew();
     robj *o = createObject(OBJ_SET,is);
@@ -239,6 +302,11 @@ robj *createIntsetObject(void) {
     return o;
 }
 
+/**
+ * 创建编码方式为ZIPLIST的RedisObject Hash对象
+ *
+ * @return
+ */
 robj *createHashObject(void) {
     unsigned char *zl = ziplistNew();
     robj *o = createObject(OBJ_HASH, zl);
@@ -246,6 +314,11 @@ robj *createHashObject(void) {
     return o;
 }
 
+/**
+ * 创建编码方式为SKIPLIST的RedisObject ZSET对象
+ *
+ * @return
+ */
 robj *createZsetObject(void) {
     zset *zs = zmalloc(sizeof(*zs));
     robj *o;
@@ -257,6 +330,11 @@ robj *createZsetObject(void) {
     return o;
 }
 
+/**
+ * 编码方式为ZIPLIST的RedisObject ZSet对象
+ *
+ * @return
+ */
 robj *createZsetZiplistObject(void) {
     unsigned char *zl = ziplistNew();
     robj *o = createObject(OBJ_ZSET,zl);
@@ -264,6 +342,11 @@ robj *createZsetZiplistObject(void) {
     return o;
 }
 
+/**
+ * 编码方式为STREAM的RedisObject Stream对象
+ *
+ * @return
+ */
 robj *createStreamObject(void) {
     stream *s = streamNew();
     robj *o = createObject(OBJ_STREAM,s);
